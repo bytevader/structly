@@ -1,0 +1,32 @@
+[build-system]
+requires = ["maturin>=1.6,<2"]
+build-backend = "maturin"
+
+[project]
+name = "structly"
+version = "0.1.0"
+description = "High-performance structured text parser (e.g., WHOIS) driven by simple markers"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Nikola Stankovic", email = "nstankovic.bg@proton.me" }]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Rust",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "maturin>=1.6",
+]
+
+[tool.maturin]
+module-name = "structly._structly"
+bindings = "pyo3"

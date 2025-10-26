@@ -1,0 +1,17 @@
+[package]
+name = "structly"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "_structly"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.22.6", features = ["extension-module", "abi3-py37"] }
+rayon = "1.10"
+memchr = "2.7"
+ahash = "0.8"
+regex = { version = "1.10", default-features = true, features = ["perf"] }
+aho-corasick = "1.1"
+once_cell = "1.19"
