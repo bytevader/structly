@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping, MutableMapping, Sequence, cast
+from typing import Any, Iterable, Mapping, MutableMapping, Sequence, cast, Union
 
 from pydantic import ValidationError
 
@@ -16,7 +16,7 @@ else:
     _IMPORT_ERROR = None
 
 
-def _coerce_to_structly_config(config: StructlyConfig | Mapping[str, Any]) -> StructlyConfig:
+def _coerce_to_structly_config(config: Union[StructlyConfig, Mapping[str, Any]]) -> StructlyConfig:
     if isinstance(config, StructlyConfig):
         return config
     if not isinstance(config, Mapping):
@@ -66,7 +66,7 @@ class StructlyParser:
 
     __slots__ = ("config", "_runtime_config", "_native")
 
-    def __init__(self, config: StructlyConfig | Mapping[str, Any]):
+    def __init__(self, config: Union[StructlyConfig, Mapping[str, Any]]):
         if _NativeParser is None:  # pragma: no cover - exercised only when build is missing
             message = (
                 "structly native extension is not available. "
@@ -110,7 +110,9 @@ class StructlyParser:
             result = cast(MutableMapping[str, Any], dict(result))
         return result
 
-    def parse_many(self, texts: Sequence[str] | Iterable[str]) -> list[MutableMapping[str, Any]]:
+    def parse_many(
+        self, texts: Union[Sequence[str], Iterable[str]]
+    ) -> list[MutableMapping[str, Any]]:
         """Parse multiple documents in a single call."""
         text_list = list(texts)
         if not all(isinstance(t, str) for t in text_list):
@@ -137,21 +139,25 @@ class StructlyParser:
         return tuple(parsed.items())
 
 
-def prepare_parser(config: StructlyConfig | Mapping[str, Any]) -> StructlyParser:
+def prepare_parser(config: Union[StructlyConfig, Mapping[str, Any]]) -> StructlyParser:
     """Compile and return a :class:`StructlyParser`."""
     return StructlyParser(config)
 
 
-def parse_text(text: str, config: StructlyConfig | Mapping[str, Any]) -> MutableMapping[str, Any]:
+def parse_text(
+    text: str, config: Union[StructlyConfig, Mapping[str, Any]]
+) -> MutableMapping[str, Any]:
     """One-shot helper that compiles the config and parses a single document."""
     return prepare_parser(config).parse(text)
 
 
-def parse_tuple(text: str, config: StructlyConfig | Mapping[str, Any]) -> tuple[Any, ...]:
+def parse_tuple(text: str, config: Union[StructlyConfig, Mapping[str, Any]]) -> tuple[Any, ...]:
     """One-shot helper returning just the field values as a tuple."""
     return prepare_parser(config).parse_tuple(text)
 
 
-def iter_field_items(text: str, config: StructlyConfig | Mapping[str, Any]) -> tuple[tuple[str, Any], ...]:
+def iter_field_items(
+    text: str, config: Union[StructlyConfig, Mapping[str, Any]]
+) -> tuple[str, ...]:
     """One-shot helper returning ordered ``(field, value)`` tuples."""
     return prepare_parser(config).iter_field_items(text)

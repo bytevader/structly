@@ -11,10 +11,16 @@ from .models import (
 )
 from .parser import (
     StructlyParser,
-    iter_field_items as _iter_field_items,
-    parse_text as _parse_text,
-    parse_tuple as _parse_tuple,
     prepare_parser,
+)
+from .parser import (
+    iter_field_items as _iter_field_items,
+)
+from .parser import (
+    parse_text as _parse_text,
+)
+from .parser import (
+    parse_tuple as _parse_tuple,
 )
 
 # Re-exported helpers with conventional names

@@ -1,9 +1,12 @@
-.PHONY: test install-rust ensure-maturin
+.PHONY: test install-rust ensure-maturin lint format typecheck
 
 PYTHON ?= python3
 
 test:
 	PYTHONPATH=$(PWD) pytest --cov=structly --cov-report=term-missing
+
+format:
+	black structly tests
 
 install-rust: ensure-maturin
 	$(PYTHON) -m maturin develop --release

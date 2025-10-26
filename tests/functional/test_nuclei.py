@@ -44,7 +44,9 @@ NUCLEI_CONFIG = StructlyConfig(
             patterns=[FieldPattern.regex(r"\] \[.*?\] \[.*?\] \[.*?\] \[.*?\] (?P<val>[^ ]+) ")],
         ),
         "finding": FieldSpec(
-            patterns=[FieldPattern.regex(r"\] \[.*?\] \[.*?\] \[.*?\] \[.*?\] [^ ]+ - (?P<val>.*)")],
+            patterns=[
+                FieldPattern.regex(r"\] \[.*?\] \[.*?\] \[.*?\] \[.*?\] [^ ]+ - (?P<val>.*)")
+            ],
         ),
         "template": FieldSpec(
             patterns=[FieldPattern.starts_with("Template:")],

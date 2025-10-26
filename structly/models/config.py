@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from structly.models.field_spec import FieldSpec
 
+
 class StructlyConfig(BaseModel):
     fields: Dict[str, FieldSpec] = Field(default_factory=dict)
     version: Optional[str] = None
@@ -12,7 +13,7 @@ class StructlyConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     @classmethod
-    def from_mapping(cls, m: Mapping[str, Any]) -> "StructlyConfig":
+    def from_mapping(cls, m: Mapping[str, Any]) -> StructlyConfig:
         """
         Accepts either:
           - {"fields": {name: {patterns:[...], ...}, ...}, "version": "..."}
@@ -23,8 +24,4 @@ class StructlyConfig(BaseModel):
         return cls(fields={k: FieldSpec.model_validate(v) for k, v in m.items()})
 
     def to_runtime_dict(self) -> Dict[str, Any]:
-        return {
-            name: spec.to_runtime_object()
-            for name, spec in self.fields.items()
-        }
-
+        return {name: spec.to_runtime_object() for name, spec in self.fields.items()}

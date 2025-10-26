@@ -37,18 +37,25 @@ Apr 12 09:45:09 bastion sshd[6120]: Failed password for root from 203.0.113.60 p
 SYSLOG_CONFIG = StructlyConfig(
     fields={
         "timestamp": FieldSpec(
-            patterns=[FieldPattern.regex(r"r:^(?P<val>[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})")],
-
+            patterns=[
+                FieldPattern.regex(r"r:^(?P<val>[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})")
+            ],
         ),
         "host": FieldSpec(
             patterns=[FieldPattern.regex(r"r:^\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+(?P<val>\S+)")],
         ),
         "process": FieldSpec(
-            patterns=[FieldPattern.regex(r"r:^\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\S+\s+(?P<val>[a-zA-Z0-9_\-]+)\[")],
+            patterns=[
+                FieldPattern.regex(
+                    r"r:^\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\S+\s+(?P<val>[a-zA-Z0-9_\-]+)\["
+                )
+            ],
         ),
         "message": FieldSpec(
             patterns=[
-                FieldPattern.regex(r"^\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\S+\s+\S+\[\d+\]:\s+(?P<val>.*)"),
+                FieldPattern.regex(
+                    r"^\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}\s+\S+\s+\S+\[\d+\]:\s+(?P<val>.*)"
+                ),
                 FieldPattern.starts_with("Apr"),
             ],
         ),

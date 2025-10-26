@@ -93,7 +93,9 @@ def test_structly_parser_parse_tuple(parser: StructlyParser):
     assert values[1] == ["ns1.example"]
 
 
-def test_structly_parser_runtime_config_property(parser: StructlyParser, sample_config: StructlyConfig):
+def test_structly_parser_runtime_config_property(
+    parser: StructlyParser, sample_config: StructlyConfig
+):
     assert parser.runtime_config == sample_config.to_runtime_dict()
 
 

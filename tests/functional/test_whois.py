@@ -170,7 +170,9 @@ WHOIS_UK_CONFIG = StructlyConfig(
         ),
         "name_servers": FieldSpec(
             patterns=[
-                FieldPattern.regex(r"(?im)^\s*(?:Name Server:)?\s*(?P<val>.*\d+(?:\.[a-z0-9-]+)+)\s*$"),
+                FieldPattern.regex(
+                    r"(?im)^\s*(?:Name Server:)?\s*(?P<val>.*\d+(?:\.[a-z0-9-]+)+)\s*$"
+                ),
             ],
             mode=Mode.all,
             unique=True,

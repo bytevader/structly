@@ -160,9 +160,7 @@ def test_structly_config_is_immutable():
 
 def test_structly_config_forbids_extra_fields():
     with pytest.raises(ValidationError):
-        StructlyConfig.model_validate(
-            {"fields": {}, "version": "v1", "unsupported": True}
-        )
+        StructlyConfig.model_validate({"fields": {}, "version": "v1", "unsupported": True})
 
 
 def test_field_spec_coerce_string_patterns_noop():

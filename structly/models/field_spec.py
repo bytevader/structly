@@ -2,28 +2,29 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import Any, Dict, List, Mapping
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 class FieldPatternType(str, Enum):
     """Canonical prefix expected by the Rust core"""
+
     STARTS_WITH = "sw:"
-    REGEX       = "r:"
+    REGEX = "r:"
 
 
 class Mode(str, Enum):
     first = "first"
-    all   = "all"
+    all = "all"
 
 
 class ReturnShape(str, Enum):
     scalar = "scalar"
-    list_  = "list"
+    list_ = "list"
 
 
-def _split_prefix(s: str) -> tuple[FieldPatternType | None, str]:
+def _split_prefix(s: str) -> Tuple[Optional[FieldPatternType], str]:
     """
     If a string starts with 'sw:' or 'r:', return (prefix_enum, body).
     Otherwise, return (None, s).
@@ -49,17 +50,17 @@ class FieldPattern(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     @classmethod
-    def starts_with(cls, literal: str) -> "FieldPattern":
+    def starts_with(cls, literal: str) -> FieldPattern:
         """Create a starts-with pattern."""
         return cls(pattern_type=FieldPatternType.STARTS_WITH, pattern=literal)
 
     @classmethod
-    def regex(cls, pattern: str) -> "FieldPattern":
+    def regex(cls, pattern: str) -> FieldPattern:
         """Create a regular-expression pattern."""
         return cls(pattern_type=FieldPatternType.REGEX, pattern=pattern)
 
     @model_validator(mode="after")
-    def _validate_and_compile(self) -> "FieldPattern":
+    def _validate_and_compile(self) -> FieldPattern:
         body = _strip_known_prefixes(self.pattern)
         if self.pattern_type == FieldPatternType.REGEX:
             try:
@@ -83,6 +84,7 @@ class FieldSpec(BaseModel):
     """
     Specification for a single extracted field (e.g., 'domain', 'created date').
     """
+
     patterns: List[FieldPattern] = Field(
         description="Ordered list of markers. 'sw:' for starts-with literal prefix, 'r:' for regex prefix."
     )
@@ -118,7 +120,7 @@ class FieldSpec(BaseModel):
         return data
 
     @model_validator(mode="after")
-    def _ensure_patterns(self) -> "FieldSpec":
+    def _ensure_patterns(self) -> FieldSpec:
         if not self.patterns:
             raise ValueError("At least one pattern is required")
         return self
