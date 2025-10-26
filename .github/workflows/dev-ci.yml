@@ -24,16 +24,28 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Create virtual environment
+        run: python -m venv .venv
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          source .venv/bin/activate
+          pip install --upgrade pip
           pip install -e '.[dev]'
 
       - name: Build native extension
-        run: make install-rust
+        run: |
+          source .venv/bin/activate
+          make install-rust
+        env:
+          PYTHON: .venv/bin/python
 
       - name: Run tests
-        run: make test
+        run: |
+          source .venv/bin/activate
+          make test
+        env:
+          PYTHONPATH: ${{ github.workspace }}
 
   publish-testpypi:
     name: Publish to TestPyPI
@@ -46,8 +58,8 @@ jobs:
 
       - name: Publish with maturin
         uses: PyO3/maturin-action@v1
+        env:
+          MATURIN_PYPI_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
         with:
           command: publish
-          args: --skip-existing --no-strip
-          repository: testpypi
-          token: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          args: --skip-existing --no-strip --repository-url https://test.pypi.org/legacy/
