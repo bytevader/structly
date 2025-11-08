@@ -27,6 +27,7 @@ dev = [
   "maturin>=1.6",
   "black>=24.4.0",
   "isort>=5.13",
+  "psutil>=5.9"
 ]
 
 [tool.maturin]
