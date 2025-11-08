@@ -36,6 +36,83 @@ struct Field {
     opts: FieldOptions,
 }
 
+#[derive(Clone)]
+struct InlineDelims {
+    table: [bool; 256],
+}
+
+impl InlineDelims {
+    #[inline]
+    fn new(bytes: &[u8]) -> Self {
+        let mut table = [false; 256];
+        for &b in bytes {
+            table[b as usize] = true;
+        }
+        Self { table }
+    }
+
+    #[inline]
+    fn contains(&self, b: u8) -> bool {
+        self.table[b as usize]
+    }
+}
+
+#[derive(Clone)]
+enum FieldLayout {
+    LineAnchored,
+    Inline { delims: InlineDelims },
+}
+
+impl FieldLayout {
+    const DEFAULT_INLINE_DELIMS: &'static [u8] = b" \t,;|";
+
+    #[inline]
+    fn accepts_match(&self, start: usize) -> bool {
+        match self {
+            FieldLayout::LineAnchored => start == 0,
+            FieldLayout::Inline { .. } => true,
+        }
+    }
+
+    #[inline]
+    fn value_end(&self, bytes: &[u8], mut start: usize, line_end: usize) -> usize {
+        match self {
+            FieldLayout::LineAnchored => line_end,
+            FieldLayout::Inline { delims } => {
+                while start < line_end {
+                    if delims.contains(bytes[start]) {
+                        break;
+                    }
+                    start += 1;
+                }
+                start
+            }
+        }
+    }
+
+    #[inline]
+    fn is_line_anchored(&self) -> bool {
+        matches!(self, FieldLayout::LineAnchored)
+    }
+
+    fn from_py_args(field_layout: &str, inline_value_delimiters: Option<&str>) -> PyResult<Self> {
+        if field_layout.eq_ignore_ascii_case("line") {
+            return Ok(FieldLayout::LineAnchored);
+        }
+        if field_layout.eq_ignore_ascii_case("inline") {
+            let delims_bytes = inline_value_delimiters.unwrap_or_else(|| {
+                std::str::from_utf8(FieldLayout::DEFAULT_INLINE_DELIMS).unwrap()
+            });
+            let delims = InlineDelims::new(delims_bytes.as_bytes());
+            return Ok(FieldLayout::Inline { delims });
+        }
+        Err(PyValueError::new_err(format!(
+            "Invalid field_layout '{}'. Expected 'line' or 'inline'",
+            field_layout
+        )))
+    }
+}
+
 // A compiled "starts-with" pattern
 #[derive(Clone)]
 struct SwRoute {
@@ -79,6 +156,19 @@ fn trim(bytes: &[u8], mut s: usize, mut e: usize) -> (usize, usize) {
 }
 
 #[inline]
+fn trim_quotes(bytes: &[u8], mut s: usize, mut e: usize) -> (usize, usize) {
+    if e <= s + 1 {
+        return (s, e);
+    }
+    let start_byte = bytes[s];
+    if (start_byte == b'"' || start_byte == b'\'') && bytes[e - 1] == start_byte {
+        s += 1;
+        e -= 1;
+    }
+    (s, e)
+}
+
+#[inline]
 fn hash_bytes(b: &[u8]) -> u64 {
     let mut h = AHasher::default();
     h.write(b);
@@ -106,12 +196,7 @@ fn line_ranges(bytes: &[u8]) -> impl Iterator<Item = (usize, usize)> + '_ {
 // ensure we only slice on UTF-8 boundaries; otherwise safely revalidate/repair.
 // Fast path is zero-cost when boundaries align.
 #[inline]
-fn py_str_from_range<'py>(
-    py: Python<'py>,
-    text: &str,
-    s: usize,
-    e: usize,
-) -> Bound<'py, PyString> {
+fn py_str_from_range<'py>(py: Python<'py>, text: &str, s: usize, e: usize) -> Bound<'py, PyString> {
     if text.is_char_boundary(s) && text.is_char_boundary(e) {
         return PyString::new_bound(py, &text[s..e]);
     }
@@ -177,10 +262,11 @@ struct Parser {
 
     // Fast decisions
     only_first_scalars: bool, // all requested fields are Mode::First && return_list==false
+    layout: FieldLayout,
 }
 
 impl Parser {
-    fn compile(_py: Python<'_>, config: &Bound<PyAny>) -> PyResult<Self> {
+    fn compile(_py: Python<'_>, config: &Bound<PyAny>, layout: FieldLayout) -> PyResult<Self> {
         let dict = config.downcast::<PyDict>()?;
 
         let mut fields = Vec::<Field>::with_capacity(dict.len());
@@ -211,10 +297,7 @@ impl Parser {
                     })?;
 
                     let patterns_any = d.get_item("patterns")?.ok_or_else(|| {
-                        PyValueError::new_err(format!(
-                            "Missing 'patterns' for field '{}'",
-                            name
-                        ))
+                        PyValueError::new_err(format!("Missing 'patterns' for field '{}'", name))
                     })?;
                     let patterns: Vec<String> = patterns_any.extract()?;
 
@@ -278,8 +361,12 @@ impl Parser {
         let ac = if sw_patterns.is_empty() {
             None
         } else {
+            let match_kind = match layout {
+                FieldLayout::LineAnchored => MatchKind::LeftmostLongest,
+                FieldLayout::Inline { .. } => MatchKind::Standard,
+            };
             let ac = AhoCorasick::builder()
-                .match_kind(MatchKind::LeftmostLongest)
+                .match_kind(match_kind)
                 .build(&sw_patterns)
                 .map_err(|e| PyValueError::new_err(format!("Failed to build Aho-Corasick: {e}")))?;
             Some(ac)
@@ -321,6 +408,7 @@ impl Parser {
             re_list,
             re_routes,
             only_first_scalars,
+            layout,
         })
     }
 
@@ -344,11 +432,7 @@ impl Parser {
             })
             .collect();
 
-        let mut first_remaining = if self.only_first_scalars {
-            n_fields
-        } else {
-            0
-        };
+        let mut first_remaining = if self.only_first_scalars { n_fields } else { 0 };
 
         'lines: for (ls, le) in line_ranges(bytes) {
             if ls >= le {
@@ -358,51 +442,63 @@ impl Parser {
 
             // 1) starts-with (AC), anchored at start-of-line
             if let Some(ac) = &self.ac {
-                if let Some(m) = ac.find(line) {
-                    if m.start() == 0 {
-                        let ridx = m.pattern();
-                        let route = &self.sw_routes[ridx];
-                        let fidx = route.field_idx;
-
-                        let field = &self.fields[fidx];
-                        let st = &mut states[fidx];
-                        if field.opts.mode == Mode::First && !field.opts.return_list && st.first_done
-                        {
-                            // already captured
-                        } else {
-                            let (s0, e0) = (ls + m.end(), le);
-                            let (s, e) = trim(bytes, s0, e0);
-                            if s < e {
-                                if let Some(seen) = &mut st.seen {
-                                    let hv = hash_bytes(&bytes[s..e]);
-                                    let key = (hv, (e - s) as u32);
-                                    let is_duplicate = if seen.insert(key) {
-                                        false
-                                    } else {
-                                        st.values.iter().any(|&(ss, ee)| {
-                                            ee - ss == e - s && bytes[ss..ee] == bytes[s..e]
-                                        })
-                                    };
-                                    if !is_duplicate {
-                                        st.values.push((s, e));
-                                    }
-                                } else {
-                                    st.values.push((s, e));
-                                }
-                                if field.opts.mode == Mode::First && !field.opts.return_list {
-                                    if !st.first_done {
-                                        st.first_done = true;
-                                        if self.only_first_scalars {
-                                            first_remaining -= 1;
-                                            if first_remaining == 0 {
-                                                break 'lines;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                let mut stop_lines = false;
+                for m in ac.find_iter(line) {
+                    if !self.layout.accepts_match(m.start()) {
+                        continue;
                     }
+                    let ridx = m.pattern();
+                    let route = &self.sw_routes[ridx];
+                    let fidx = route.field_idx;
+
+                    let field = &self.fields[fidx];
+                    let st = &mut states[fidx];
+                    if field.opts.mode == Mode::First && !field.opts.return_list && st.first_done {
+                        if self.layout.is_line_anchored() {
+                            break;
+                        }
+                        continue;
+                    }
+
+                    let value_start = ls + m.end();
+                    if value_start >= le {
+                        if self.layout.is_line_anchored() {
+                            break;
+                        }
+                        continue;
+                    }
+                    let value_end = self.layout.value_end(bytes, value_start, le);
+                    if value_start >= value_end {
+                        if self.layout.is_line_anchored() {
+                            break;
+                        }
+                        continue;
+                    }
+
+                    if self.push_value(
+                        bytes,
+                        st,
+                        field,
+                        value_start,
+                        value_end,
+                        &mut first_remaining,
+                    ) {
+                        if self.only_first_scalars && first_remaining == 0 {
+                            stop_lines = true;
+                            break;
+                        }
+                        if self.layout.is_line_anchored() {
+                            break;
+                        }
+                        continue;
+                    }
+
+                    if self.layout.is_line_anchored() {
+                        break;
+                    }
+                }
+                if stop_lines {
+                    break 'lines;
                 }
             }
 
@@ -417,64 +513,63 @@ impl Parser {
                         let field = &self.fields[fidx];
                         let st = &mut states[fidx];
 
-                        if field.opts.mode == Mode::First && !field.opts.return_list && st.first_done
+                        if field.opts.mode == Mode::First
+                            && !field.opts.return_list
+                            && st.first_done
                         {
                             continue;
                         }
 
                         let re = &self.re_list[idx];
 
-                        let mut process_capture = |s: usize, e: usize| -> bool {
-                            let (mut s, mut e) = (s, e);
-                            (s, e) = trim(bytes, s, e);
-                            if s >= e {
-                                return false;
-                            }
-                            if let Some(seen) = &mut st.seen {
-                                let hv = hash_bytes(&bytes[s..e]);
-                                let key = (hv, (e - s) as u32);
-                                if !seen.insert(key) {
-                                    let duplicate = st
-                                        .values
-                                        .iter()
-                                        .any(|&(ss, ee)| ee - ss == e - s && bytes[ss..ee] == bytes[s..e]);
-                                    if duplicate {
-                                        return false;
-                                    }
-                                }
-                            }
-                            st.values.push((s, e));
-                            if field.opts.mode == Mode::First && !field.opts.return_list {
-                                st.first_done = true;
-                                if self.only_first_scalars {
-                                    if first_remaining > 0 {
-                                        first_remaining -= 1;
-                                    }
-                                    if first_remaining == 0 {
-                                        stop_all = true;
-                                        return true;
-                                    }
-                                }
-                                return true;
-                            }
-                            false
-                        };
-
                         if route.has_val_group {
                             for caps in re.captures_iter(line) {
                                 if let Some(mv) = caps.name("val") {
-                                    if process_capture(ls + mv.start(), ls + mv.end()) {
+                                    if self.push_value(
+                                        bytes,
+                                        st,
+                                        field,
+                                        ls + mv.start(),
+                                        ls + mv.end(),
+                                        &mut first_remaining,
+                                    ) {
+                                        if self.only_first_scalars && first_remaining == 0 {
+                                            stop_all = true;
+                                            break 'regexes;
+                                        }
                                         continue 'regexes;
                                     }
                                 } else if let Some(m0) = caps.get(0) {
-                                    if process_capture(ls + m0.end(), le) {
+                                    if self.push_value(
+                                        bytes,
+                                        st,
+                                        field,
+                                        ls + m0.end(),
+                                        le,
+                                        &mut first_remaining,
+                                    ) {
+                                        if self.only_first_scalars && first_remaining == 0 {
+                                            stop_all = true;
+                                            break 'regexes;
+                                        }
                                         continue 'regexes;
                                     }
                                 }
                             }
                         } else {
                             for m0 in re.find_iter(line) {
-                                if process_capture(ls + m0.end(), le) {
+                                if self.push_value(
+                                    bytes,
+                                    st,
+                                    field,
+                                    ls + m0.end(),
+                                    le,
+                                    &mut first_remaining,
+                                ) {
+                                    if self.only_first_scalars && first_remaining == 0 {
+                                        stop_all = true;
+                                        break 'regexes;
+                                    }
                                     continue 'regexes;
                                 }
                             }
@@ -495,6 +590,53 @@ impl Parser {
         }
 
         states.into_iter().map(|s| s.values).collect()
+    }
+
+    #[inline]
+    fn push_value(
+        &self,
+        bytes: &[u8],
+        st: &mut FieldState,
+        field: &Field,
+        raw_start: usize,
+        raw_end: usize,
+        first_remaining: &mut usize,
+    ) -> bool {
+        let (mut s, mut e) = trim(bytes, raw_start, raw_end);
+        if s >= e {
+            return false;
+        }
+        (s, e) = trim_quotes(bytes, s, e);
+        if s >= e {
+            return false;
+        }
+
+        if let Some(seen) = &mut st.seen {
+            let hv = hash_bytes(&bytes[s..e]);
+            let key = (hv, (e - s) as u32);
+            if !seen.insert(key) {
+                let duplicate = st
+                    .values
+                    .iter()
+                    .any(|&(ss, ee)| ee - ss == e - s && bytes[ss..ee] == bytes[s..e]);
+                if duplicate {
+                    return false;
+                }
+            }
+        }
+
+        st.values.push((s, e));
+
+        if field.opts.mode == Mode::First && !field.opts.return_list {
+            if !st.first_done {
+                st.first_done = true;
+                if self.only_first_scalars && *first_remaining > 0 {
+                    *first_remaining -= 1;
+                }
+            }
+            return true;
+        }
+        false
     }
 
     fn build_dict(
@@ -556,8 +698,15 @@ impl Parser {
 #[pymethods]
 impl Parser {
     #[new]
-    fn new(py: Python<'_>, config: Bound<PyAny>) -> PyResult<Self> {
-        Parser::compile(py, &config)
+    #[pyo3(signature = (config, *, field_layout="line", inline_value_delimiters=None))]
+    fn new(
+        py: Python<'_>,
+        config: Bound<PyAny>,
+        field_layout: &str,
+        inline_value_delimiters: Option<&str>,
+    ) -> PyResult<Self> {
+        let layout = FieldLayout::from_py_args(field_layout, inline_value_delimiters)?;
+        Parser::compile(py, &config, layout)
     }
 
     #[pyo3(text_signature = "(self)")]
@@ -625,14 +774,14 @@ impl Parser {
 #[pyfunction]
 #[pyo3(text_signature = "(text, config)")]
 fn parse(py: Python<'_>, text: &str, config: Bound<PyAny>) -> PyResult<PyObject> {
-    let p = Parser::new(py, config)?;
+    let p = Parser::compile(py, &config, FieldLayout::LineAnchored)?;
     p.parse(py, text)
 }
 
 #[pyfunction]
 #[pyo3(text_signature = "(text, config)")]
 fn iter_field_items(py: Python<'_>, text: &str, config: Bound<PyAny>) -> PyResult<PyObject> {
-    let p = Parser::new(py, config)?;
+    let p = Parser::compile(py, &config, FieldLayout::LineAnchored)?;
     let dict_obj = p.parse(py, text)?;
     let dict = dict_obj.downcast_bound::<PyDict>(py)?;
     let mut items = Vec::<(String, PyObject)>::with_capacity(dict.len());

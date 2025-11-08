@@ -1,15 +1,4 @@
-import pytest
-
-pytest.importorskip("structly._structly")
-
-from structly import (
-    FieldPattern,
-    FieldSpec,
-    Mode,
-    ReturnShape,
-    StructlyConfig,
-    StructlyParser,
-)
+from structly import FieldPattern, FieldSpec, Mode, ReturnShape, StructlyConfig, StructlyParser
 
 WHOIS_SAMPLE = """\
 Domain Name: EXAMPLE-CONTACT.COM
@@ -71,28 +60,47 @@ WHOIS_UK_SAMPLE = """\
     WHOIS lookup made at 11:51:57 26-Oct-2025
 """
 
-WHOIS_CONFIG = StructlyConfig(
+WHOIS_BASELINE_CONFIG = StructlyConfig(
     fields={
         "domain": FieldSpec(
-            patterns=[FieldPattern.starts_with("Domain Name:")],
+            patterns=[
+                FieldPattern.starts_with("Domain Name:"),
+                FieldPattern.regex(r"Domain name:\s*(?P<val>.+)"),
+            ],
         ),
         "registrar": FieldSpec(
-            patterns=[FieldPattern.starts_with("Registrar:")],
+            patterns=[
+                FieldPattern.starts_with("Registrar:"),
+                FieldPattern.regex(r"^\s*Registrar:\s*(?P<val>.+)$"),
+                FieldPattern.regex(r"^\s*(?P<val>.+\[Tag = .+\])$"),
+            ],
         ),
         "registrar_url": FieldSpec(
-            patterns=[FieldPattern.starts_with("Registrar URL:")],
+            patterns=[
+                FieldPattern.starts_with("Registrar URL:"),
+                FieldPattern.regex(r"^\s*URL:\s*(?P<val>\S+)"),
+            ],
         ),
         "registrar_id": FieldSpec(
             patterns=[FieldPattern.starts_with("Registrar IANA ID:")],
         ),
         "created": FieldSpec(
-            patterns=[FieldPattern.starts_with("Creation Date:")],
+            patterns=[
+                FieldPattern.starts_with("Creation Date:"),
+                FieldPattern.regex(r"^\s*Registered on:\s*(?P<val>\d{2}-[A-Za-z]{3}-\d{4})"),
+            ],
         ),
         "updated": FieldSpec(
-            patterns=[FieldPattern.starts_with("Updated Date:")],
+            patterns=[
+                FieldPattern.starts_with("Updated Date:"),
+                FieldPattern.regex(r"^\s*Last updated:\s*(?P<val>\d{2}-[A-Za-z]{3}-\d{4})"),
+            ],
         ),
         "expiry": FieldSpec(
-            patterns=[FieldPattern.starts_with("Registry Expiry Date:")],
+            patterns=[
+                FieldPattern.starts_with("Registry Expiry Date:"),
+                FieldPattern.regex(r"^\s*Expiry date:\s*(?P<val>\d{2}-[A-Za-z]{3}-\d{4})"),
+            ],
         ),
         "registrant_email": FieldSpec(
             patterns=[FieldPattern.regex(r"^Registrant Email:\s+(?P<val>.+)$")],
@@ -101,23 +109,34 @@ WHOIS_CONFIG = StructlyConfig(
             patterns=[FieldPattern.starts_with("Tech Email:")],
         ),
         "name_servers": FieldSpec(
-            patterns=[FieldPattern.starts_with("Name Server:")],
+            patterns=[
+                FieldPattern.starts_with("Name Server:"),
+                FieldPattern.regex(
+                    r"(?im)^\s{4,}(?P<val>(?:[a-z0-9-]*\d[a-z0-9-]*|[a-z0-9-]*ns[a-z0-9-]*|[a-z0-9-]*server[a-z0-9-]*)(?:\.[a-z0-9-]+)+)\s*$"
+                ),
+            ],
             mode=Mode.all,
             unique=True,
             return_shape=ReturnShape.list_,
         ),
         "statuses": FieldSpec(
-            patterns=[FieldPattern.starts_with("Status:")],
+            patterns=[
+                FieldPattern.starts_with("Status:"),
+                FieldPattern.regex(r"(?i)Registration status:\s*(?P<val>[^\r\n]+)"),
+            ],
             mode=Mode.all,
             unique=True,
             return_shape=ReturnShape.list_,
+        ),
+        "lookup_time": FieldSpec(
+            patterns=[FieldPattern.regex(r"WHOIS lookup made at (?P<val>.*)$")],
         ),
     }
 )
 
 
-def test_whois_parsing_produces_structured_dict():
-    parser = StructlyParser(WHOIS_CONFIG)
+def test_whois_parsing():
+    parser = StructlyParser(WHOIS_BASELINE_CONFIG)
 
     result = parser.parse(WHOIS_SAMPLE)
 
@@ -142,61 +161,17 @@ def test_whois_parsing_produces_structured_dict():
     ]
 
 
-WHOIS_UK_CONFIG = StructlyConfig(
-    fields={
-        "domain": FieldSpec(
-            patterns=[FieldPattern.regex(r"Domain name:\s*(?P<val>.+)")],
-        ),
-        "registrar": FieldSpec(
-            patterns=[
-                FieldPattern.regex(r"^\s*Registrar:\s*(?P<val>.+)$"),
-                FieldPattern.regex(r"^\s*(?P<val>.+\[Tag = .+\])$"),
-            ],
-        ),
-        "registrar_url": FieldSpec(
-            patterns=[FieldPattern.regex(r"^\s*URL:\s*(?P<val>\S+)")],
-        ),
-        "registered_on": FieldSpec(
-            patterns=[FieldPattern.regex(r"Registered on:\s*(?P<val>\d{2}-[A-Za-z]{3}-\d{4})")],
-        ),
-        "expiry_date": FieldSpec(
-            patterns=[FieldPattern.regex(r"Expiry date:\s*(?P<val>\d{2}-[A-Za-z]{3}-\d{4})")],
-        ),
-        "last_updated": FieldSpec(
-            patterns=[FieldPattern.regex(r"Last updated:\s*(?P<val>\d{2}-[A-Za-z]{3}-\d{4})")],
-        ),
-        "status": FieldSpec(
-            patterns=[FieldPattern.regex(r"Registration status:\s*(?P<val>.+)")],
-        ),
-        "name_servers": FieldSpec(
-            patterns=[
-                FieldPattern.regex(
-                    r"(?im)^\s*(?:Name Server:)?\s*(?P<val>.*\d+(?:\.[a-z0-9-]+)+)\s*$"
-                ),
-            ],
-            mode=Mode.all,
-            unique=True,
-            return_shape=ReturnShape.list_,
-        ),
-        "lookup_time": FieldSpec(
-            patterns=[FieldPattern.regex(r"WHOIS lookup made at (?P<val>.*)")],
-        ),
-    }
-)
-
-
 def test_whois_uk_parsing_handles_indented_fields():
-    parser = StructlyParser(WHOIS_UK_CONFIG)
+    parser = StructlyParser(WHOIS_BASELINE_CONFIG)
     result = parser.parse(WHOIS_UK_SAMPLE)
 
     assert result["domain"] == "google.co.uk"
     assert result["registrar"] == "Markmonitor Inc. [Tag = MARKMONITOR]"
     assert result["registrar_url"] == "https://www.markmonitor.com"
-    assert result["registered_on"] == "14-Feb-1999"
-    assert result["expiry_date"] == "14-Feb-2026"
-    assert result["last_updated"] == "13-Jan-2025"
-    assert result["status"] == "Registered until expiry date."
-    print(result["name_servers"])
+    assert result["created"] == "14-Feb-1999"
+    assert result["expiry"] == "14-Feb-2026"
+    assert result["updated"] == "13-Jan-2025"
+    assert result["statuses"] == ["Registered until expiry date."]
     assert result["name_servers"] == [
         "dns101.register.com",
         "ns2.google.com",

@@ -1,29 +1,13 @@
 from __future__ import annotations
 
 from .exceptions import ConfigurationError, ParsingError, StructlyError
-from .models import (
-    FieldPattern,
-    FieldPatternType,
-    FieldSpec,
-    Mode,
-    ReturnShape,
-    StructlyConfig,
-)
-from .parser import (
-    StructlyParser,
-    prepare_parser,
-)
-from .parser import (
-    iter_field_items as _iter_field_items,
-)
-from .parser import (
-    parse_text as _parse_text,
-)
-from .parser import (
-    parse_tuple as _parse_tuple,
-)
+from .models import FieldPattern, FieldPatternType, FieldSpec, Mode, ReturnShape, StructlyConfig
+from .parser import StructlyParser
+from .parser import iter_field_items as _iter_field_items
+from .parser import parse_text as _parse_text
+from .parser import parse_tuple as _parse_tuple
+from .parser import prepare_parser
 
-# Re-exported helpers with conventional names
 prepare = prepare_parser
 parse = _parse_text
 parse_tuple = _parse_tuple
