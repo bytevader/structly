@@ -1,8 +1,9 @@
 # Structly
 
-Structly is a high-performance parsing toolkit that combines a Rust core with a Pythonic API.
+Structly is a high-performance parsing toolkit that combines a Rust core with a Pythonic API.\
+True to its name, Structly turns massive amounts of unstructured input into clean, structured outputs without slowing your workflows.
 
-It is built for teams who need to sift through and parse large volumes of operational telemetry—syslog, DNS, DHCP, IPAM, firewall, routing, whois, nuclei — faster and with less memory overhead than pure-Python pipelines.
+It is built for teams who need to sift through and parse large volumes of operational telemetry—syslog, DNS, DHCP, IPAM, firewall, routing, whois, nuclei, etc. — faster and with less memory overhead than pure-Python pipelines.
 
 Structly’s design maximises throughput without sacrificing the clarity of Python’s API. 
 If you need reliable, deterministic log/text parsing at scale, Structly is built to slot into your pipeline—and leave Python-only alternatives far behind.
@@ -26,16 +27,19 @@ If you need reliable, deterministic log/text parsing at scale, Structly is built
 
 ## Installation
 
+If you are working from this Git repository:
+
 ```bash
-# 1. Build the native extension (release mode recommended)
+# 0. Clone the repo and enter it
+git clone https://github.com/bytevader/structly.git
+cd structly
+
+# Build the native extension (release mode recommended)
 make install-rust
 
 # or, if you manage environments manually:
 python3 -m pip install -r requirements-dev.txt
 python3 -m maturin develop --release
-
-# 2. (Optional) install benchmark dependencies
-python3 -m pip install -r requirements-dev.txt
 ```
 
 Structly targets Python 3.9+ with the abi3 wheel and does not require a specific virtual environment layout.
