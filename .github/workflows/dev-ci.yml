@@ -65,10 +65,26 @@ jobs:
     name: Publish to TestPyPI
     needs: tests
     if: >-
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/dev' &&
-      contains(github.event.head_commit.message, 'release:')
-    runs-on: ubuntu-latest
+      (github.event_name == 'push' &&
+       github.ref == 'refs/heads/dev' &&
+       contains(github.event.head_commit.message, 'release:')) ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.base.ref == 'dev' &&
+       (
+         contains(github.event.pull_request.title, 'release:') ||
+         contains(github.event.pull_request.body, 'release:')
+       ))
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            args: --skip-existing --no-strip --repository-url https://test.pypi.org/legacy/
+          - os: macos-latest
+            args: --skip-existing --no-strip --target universal2-apple-darwin --repository-url https://test.pypi.org/legacy/
+          - os: windows-latest
+            args: --skip-existing --no-strip --repository-url https://test.pypi.org/legacy/
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -79,4 +95,4 @@ jobs:
           MATURIN_PYPI_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
         with:
           command: publish
-          args: --skip-existing --no-strip --repository-url https://test.pypi.org/legacy/
+          args: ${{ matrix.args }}
