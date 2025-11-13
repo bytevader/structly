@@ -222,8 +222,7 @@ def parse_structly(text: str) -> MutableMapping[str, Any]:
 
 
 def parse_whois_parser(text: str) -> WhoisRecord:
-    # whoisparser expects to operate on raw WHOIS string
-    return parser.parse(text, hostname="bluecatnetworks.com")
+    return parser.parse(text, hostname="domain.com")
 
 
 if __name__ == "__main__":
