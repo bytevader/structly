@@ -4,8 +4,8 @@ build-backend = "maturin"
 
 [project]
 name = "structly"
-version = "0.1.0"
-description = "High-performance structured text parser (e.g., WHOIS) driven by simple markers"
+version = "0.2.2"
+description = "High-performance text/logs parser (e.g., whois, nuclei, dns/dhcp logs) with Rust core"
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -26,6 +26,8 @@ dev = [
   "pytest-cov>=5.0",
   "maturin>=1.6",
   "black>=24.4.0",
+  "isort>=5.13",
+  "psutil>=5.9"
 ]
 
 [tool.maturin]
@@ -33,5 +35,5 @@ module-name = "structly._structly"
 bindings = "pyo3"
 
 [tool.black]
-line-length = 100
+line-length = 120
 target-version = ["py39"]

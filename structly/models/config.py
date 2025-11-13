@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import Dict, Optional, Mapping, Any
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any, Dict, Mapping, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from structly.models.field_spec import FieldSpec
 

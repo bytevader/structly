@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Union
 
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class FieldPatternType(str, Enum):
@@ -85,7 +85,7 @@ class FieldSpec(BaseModel):
     Specification for a single extracted field (e.g., 'domain', 'created date').
     """
 
-    patterns: List[FieldPattern] = Field(
+    patterns: Union[List[FieldPattern], List[str]] = Field(
         description="Ordered list of markers. 'sw:' for starts-with literal prefix, 'r:' for regex prefix."
     )
     mode: Mode = Field(default=Mode.first, description="first=stop at first match; all=collect all")
@@ -97,12 +97,14 @@ class FieldSpec(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    # Accept both:
-    #   - patterns=[FieldPattern(...), ...]  (structured)
-    #   - patterns=["sw:Label:", r"r:^Label:\s*", ...] (string shorthand)
     @model_validator(mode="before")
     @classmethod
     def _coerce_string_patterns(cls, data: Any) -> Any:
+        """
+        Accept both:
+          - structured patterns=[FieldPattern(...), ...]
+          - string shorthand patterns=["sw:Label:", "r:^Label:\\s*", ...]
+        """
         if not isinstance(data, dict) or "patterns" not in data:
             return data
         pats = data["patterns"]
