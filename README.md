@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/structly.svg">
-    <img alt="structly" src="docs/structly.svg">
+     <img src="https://raw.githubusercontent.com/bytevader/structly/main/docs/structly.svg" alt="structly">
   </picture>
 </p>
 <p align="center">
