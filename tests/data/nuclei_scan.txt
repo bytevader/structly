@@ -1,0 +1,285 @@
+[2025-11-08 09:42:11] [INF] Current nuclei version v3.2.0
+[2025-11-08 09:42:11] [INF] Using Nuclei Engine 3.2.0 (templates v9.4.1)
+[2025-11-08 09:42:11] [INF] Templates loaded: 7553 (http: 6124, dns: 118, ssl: 64, headless: 89, network: 62, file: 109, code: 987)
+[2025-11-08 09:42:11] [INF] Target: https://demo.example.org
+[2025-11-08 09:42:11] [INF] RateLimit: 150 req/s | Threads: 50 | Retries: 1 | Timeout: 10s
+[2025-11-08 09:42:11] [INF] Project file: nuclei-demo-2025-11-08.nuclei
+[2025-11-08 09:42:12] [INF] Using resolvers: 1.1.1.1, 8.8.8.8
+
+[2025-11-08 09:42:12] [WRN] Could not read .nuclei-ignore (not found), continuing
+[2025-11-08 09:42:12] [INF] Using Interactions Server: oast.projdisc.test (HTTP/DNS/SMTP)
+[2025-11-08 09:42:13] [INF] Running scan with tags: cve,exposure,default,misconfig,tech
+
+[2025-11-08 09:42:14] [info] [http] [tech-detect] [low] technology-detection
+https://demo.example.org  => tech: nginx,openssl,php,wordpress
+  extracted:
+    - server: nginx/1.24.0
+    - x-powered-by: PHP/8.2.12
+    - wp-version: 6.5.5
+
+[2025-11-08 09:42:14] [info] [http] [exposure] [medium] .git repository exposed
+template-id: exposures/configs/git-config
+matcher-name: git-config
+type: http
+host: https://demo.example.org/.git/config
+matched-at: https://demo.example.org/.git/config
+request:
+  GET /.git/config HTTP/1.1
+  Host: demo.example.org
+response:
+  HTTP/1.1 200 OK
+  content-type: text/plain
+  content-length: 742
+  ...
+extracted-results:
+  - [core]
+        repositoryformatversion = 0
+        filemode = true
+        bare = false
+
+[2025-11-08 09:42:15] [high] [http] [cve-2021-41773] [path-traversal] Apache 2.4.49 Path Traversal
+template-id: cve/2021/CVE-2021-41773
+severity: high
+host: https://demo.example.org
+matched-at: https://demo.example.org/cgi-bin/.%2e/%2e%2e/%2e%2e/etc/passwd
+evidence:
+  snippet: "root:x:0:0:root:/root:/bin/bash\n..."
+request:
+  GET /cgi-bin/.%2e/%2e%2e/%2e%2e/etc/passwd HTTP/1.1
+  Host: demo.example.org
+  User-Agent: Nuclei
+  Accept: */*
+response:
+  HTTP/1.1 200 OK
+  content-type: text/plain
+  content-length: 1948
+tags: cve,apache,traversal
+reference: https://httpd.apache.org/security/vulnerabilities_24.html
+
+[2025-11-08 09:42:15] [critical] [http] [cve-2024-6387] OpenSSH regreSSHion RCE (banner heuristic)
+template-id: cve/2024/CVE-2024-6387
+severity: critical
+host: ssh.demo.example.org:22
+matched-at: ssh://ssh.demo.example.org:22
+evidence:
+  banner: "SSH-2.0-OpenSSH_9.2p1 Ubuntu-2ubuntu0.1"
+  note: "Heuristic match (potentially vulnerable if not patched)"
+transport: network
+tags: cve,network,ssh,rce
+reference: https://www.openssh.com/txt/release-9.7
+
+[2025-11-08 09:42:15] [info] [dns] [takeover] [low] Subdomain takeover - GitHub Pages
+template-id: subdomain-takeover/github-pages
+host: blog.demo.example.org
+matched-at: http://blog.demo.example.org
+evidence:
+  body: "There isn't a GitHub Pages site here."
+dns:
+  A: 185.199.108.153
+  CNAME: demo.github.io
+remediation: "Claim the GitHub Pages site or remove the dangling DNS record."
+
+[2025-11-08 09:42:16] [medium] [http] [misconfig] Directory listing enabled
+template-id: misconfiguration/apache/directory-listing
+host: https://demo.example.org/static/
+matched-at: https://demo.example.org/static/
+evidence:
+  title: "Index of /static/"
+  anchor: "Parent Directory"
+
+[2025-11-08 09:42:16] [low] [http] [exposure] robots.txt exposed
+template-id: exposures/configs/robots-txt
+matched-at: https://demo.example.org/robots.txt
+extracted-results:
+  - "Disallow: /admin"
+  - "Sitemap: https://demo.example.org/sitemap.xml"
+
+[2025-11-08 09:42:17] [medium] [http] [cve-2020-0618] Microsoft SQL Server Reporting Services RCE (fingerprint)
+template-id: cve/2020/CVE-2020-0618
+host: https://reports.demo.example.org/Reports/browse
+matched-at: https://reports.demo.example.org/Reports/browse
+evidence:
+  header: "X-Powered-By: ASP.NET"
+  title: "SQL Server Reporting Services"
+note: "Fingerprint suggests potential exposure; manual verification required."
+tags: cve,http,msft
+
+[2025-11-08 09:42:17] [high] [http] [cve-2023-46604] Apache ActiveMQ RCE (fingerprint)
+template-id: cve/2023/CVE-2023-46604
+host: https://mq.demo.example.org
+matched-at: https://mq.demo.example.org
+evidence:
+  server: "Jetty(9.4.48.v20220622)"
+  title: "ActiveMQ Console"
+note: "Potentially vulnerable; check exact version and mitigations."
+reference: https://activemq.apache.org/security-advisories.data
+
+[2025-11-08 09:42:18] [info] [ssl] [weak-cipher] TLS weak cipher suites supported
+template-id: ssl/weak-ciphers
+host: demo.example.org:443
+matched-at: demo.example.org:443
+evidence:
+  ciphers:
+    - TLS_RSA_WITH_3DES_EDE_CBC_SHA
+    - TLS_RSA_WITH_RC4_128_SHA
+severity: info
+remediation: "Disable legacy RSA/3DES/RC4 suites; enable modern TLS 1.2/1.3."
+
+[2025-11-08 09:42:18] [low] [http] [exposure] .env file potential leak (blocked by WAF)
+template-id: exposures/configs/dotenv
+host: https://demo.example.org/.env
+matched-at: https://demo.example.org/.env
+response:
+  HTTP/1.1 403 Forbidden
+  server: cloudflare
+note: "WAF blocked; treat as potential exposure if misrouted."
+
+[2025-11-08 09:42:18] [medium] [http] [cve-2019-11510] Pulse Secure arbitrary file read (fingerprint)
+template-id: cve/2019/CVE-2019-11510
+host: https://vpn.demo.example.org
+matched-at: https://vpn.demo.example.org/dana-na/../dana/html5acc/guacamole/
+evidence:
+  path: "/dana-na/"
+  banner: "Pulse Secure"
+note: "Adjust paths and confirm manually; fingerprint only."
+
+[2025-11-08 09:42:19] [high] [http] [wordpress] Outdated WordPress (6.5.5 < 6.6.2)
+template-id: tech/wordpress/version
+host: https://demo.example.org
+matched-at: https://demo.example.org
+evidence:
+  generator: "WordPress 6.5.5"
+remediation: "Upgrade WordPress core to latest stable."
+
+[2025-11-08 09:42:19] [medium] [http] [wordpress] Vulnerable plugin - Contact Form 7 (fingerprint)
+template-id: wordpress/plugins/contact-form-7/version
+host: https://demo.example.org
+matched-at: https://demo.example.org/wp-content/plugins/contact-form-7/readme.txt
+evidence:
+  version: 5.7.5
+reference: https://wpscan.com/plugin/contact-form-7
+note: "Version may have known issues; check CVEs tied to this version."
+
+[2025-11-08 09:42:20] [low] [http] [headers] Missing security headers
+template-id: misconfiguration/security-headers
+host: https://demo.example.org
+matched-at: https://demo.example.org
+missing:
+  - Content-Security-Policy
+  - Strict-Transport-Security
+  - X-Frame-Options
+  - Permissions-Policy
+remediation: "Add baseline modern security headers."
+
+[2025-11-08 09:42:21] [info] [http] [redirect] HTTP to HTTPS redirect detected
+template-id: http/redirect
+host: http://demo.example.org
+matched-at: http://demo.example.org -> https://demo.example.org
+status-chain: 301 -> 200
+
+[2025-11-08 09:42:21] [medium] [http] [s3-bucket] Public S3 bucket listing (heuristic)
+template-id: cloud/aws/s3-bucket-public-listing
+host: assets.demo.example.org
+matched-at: http://assets.demo.example.org.s3.amazonaws.com/?list-type=2
+evidence:
+  contents:
+    - "images/banner.png"
+    - "backups/2025-10-01.tar.gz"
+remediation: "Restrict bucket ACLs and block public access."
+
+[2025-11-08 09:42:22] [high] [http] [graphql] GraphQL introspection enabled
+template-id: technologies/graphql/introspection
+host: https://api.demo.example.org/graphql
+matched-at: https://api.demo.example.org/graphql
+evidence:
+  "data":{"__schema":{"queryType":{"name":"Query"}...
+remediation: "Disable introspection in production builds."
+
+[2025-11-08 09:42:23] [info] [dns] [spf] SPF record parsed
+template-id: dns/spf-parse
+host: demo.example.org
+record: "v=spf1 include:_spf.google.com ~all"
+note: "~all indicates softfail; consider -all for strict policy."
+
+[2025-11-08 09:42:23] [low] [dns] [dmarc] DMARC policy weak
+template-id: dns/dmarc-policy
+record: "v=DMARC1; p=none; rua=mailto:dmarc@demo.example.org"
+remediation: "Increase policy to quarantine/reject after monitoring."
+
+[2025-11-08 09:42:24] [info] [ssl] [cert-info] Certificate details
+template-id: ssl/certificate-info
+host: demo.example.org:443
+subject: CN=demo.example.org
+issuer: R3
+validity: 2025-08-01 to 2025-11-29
+altnames:
+  - demo.example.org
+  - www.demo.example.org
+
+[2025-11-08 09:42:24] [low] [http] [backup-files] Backup/archive files accessible
+template-id: exposures/files/backup-archives
+matched-at: https://demo.example.org/backup-2025-08-15.zip
+response:
+  HTTP/1.1 200 OK
+  content-length: 14832179
+remediation: "Remove archives from web root; store offsite."
+
+[2025-11-08 09:42:25] [medium] [http] [cve-2021-26855] Exchange SSRF (fingerprint)
+template-id: cve/2021/CVE-2021-26855
+host: https://mail.demo.example.org
+matched-at: https://mail.demo.example.org/ecp/y.js
+note: "Fingerprint only; verify with caution."
+tags: cve,exchange
+
+[2025-11-08 09:42:26] [high] [http] [spring] Spring Boot actuator endpoints exposed
+template-id: technologies/spring/actuator
+host: https://api.demo.example.org
+matched-at: https://api.demo.example.org/actuator
+evidence:
+  endpoints:
+    - /actuator/health
+    - /actuator/env
+    - /actuator/metrics
+remediation: "Disable or secure actuator endpoints."
+
+[2025-11-08 09:42:26] [info] [http] [rate-limit] Possible WAF/CDN detected
+template-id: waf/cdn-detection
+host: https://demo.example.org
+matched-at: https://demo.example.org
+evidence:
+  server: cloudflare
+  cf-ray: 8ab1cd2ef3a9abcd
+note: "Expect inconsistent responses, adjust rate limits."
+
+[2025-11-08 09:42:27] [medium] [http] [cve-2022-22965] Spring4Shell (fingerprint)
+template-id: cve/2022/CVE-2022-22965
+host: https://api.demo.example.org
+matched-at: https://api.demo.example.org/
+evidence:
+  header: "spring-framework"
+note: "Version inference only; confirm before action."
+
+[2025-11-08 09:42:28] [low] [http] [open-redirect] Potential open redirect
+template-id: misconfiguration/open-redirect
+host: https://demo.example.org
+matched-at: https://demo.example.org/redirect?next=https://evil.test
+response:
+  status: 302
+  location: https://evil.test
+remediation: "Validate and whitelist redirect targets."
+
+[2025-11-08 09:42:28] [info] [http] [crawl] Discovered URLs (sample)
+- https://demo.example.org/wp-login.php
+- https://demo.example.org/wp-admin/
+- https://demo.example.org/static/js/app.js
+- https://demo.example.org/static/css/app.css
+- https://demo.example.org/sitemap.xml
+
+[2025-11-08 09:42:29] [INF] Scan completed in 00:00:17 (requests: 2,983, rate: ~175 req/s)
+[2025-11-08 09:42:29] [INF] Findings summary:
+  severity=critical: 1
+  severity=high:     6
+  severity=medium:   8
+  severity=low:      7
+  severity=info:     8
+[2025-11-08 09:42:29] [INF] Results saved to nuclei-demo-2025-11-08.nuclei

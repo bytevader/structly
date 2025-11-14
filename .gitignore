@@ -1,0 +1,38 @@
+# General Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Binary artifacts / wheels
+dist/
+build/
+*.egg-info/
+
+# Coverage & test output
+.coverage
+.pytest_cache/
+coverage.*
+
+# Editor / IDE
+.idea/
+.vscode/
+
+# Virtual environments
+venv/
+.venv/
+
+# Maturin / cargo build artifacts
+target/
+
+# macOS & misc
+.DS_Store
+
+# Local scripts / notebooks
+*.ipynb_checkpoints
+
+# Built extension modules
+structly/_structly*.so
+structly/_structly*.pyd
+
+# Rust lockfile (not needed for library crates published via maturin)
+Cargo.lock

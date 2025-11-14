@@ -1,0 +1,40 @@
+[build-system]
+requires = ["maturin>=1.6,<2"]
+build-backend = "maturin"
+
+[project]
+name = "structly"
+version = "1.0.0"
+description = "High-performance text/logs parser (e.g., whois, nuclei, dns/dhcp logs) with Rust core"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Nikola Stankovic", email = "nstankovic.bg@proton.me" }]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Rust",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "coverage-badge>=1.1",
+  "maturin>=1.6",
+  "black>=24.4.0",
+  "isort>=5.13",
+  "psutil>=5.9"
+]
+
+[tool.maturin]
+module-name = "structly._structly"
+bindings = "pyo3"
+
+[tool.black]
+line-length = 120
+target-version = ["py39"]
