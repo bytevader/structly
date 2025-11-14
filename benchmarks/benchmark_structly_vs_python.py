@@ -68,6 +68,12 @@ def _format_bytes(num: int) -> str:
     return f"{num / (1024 * 1024):.3f} MiB"
 
 
+def _format_rate(runs: int, seconds: float) -> str:
+    if seconds <= 0:
+        return "n/a"
+    return f"{runs / seconds:,.0f}"
+
+
 # -----------------------
 # 1) Build config & text
 # -----------------------
@@ -443,6 +449,7 @@ table.field_names = [
     "RSS Δ",
     "Py Peak",
     "µs/run",
+    "rec/s",
     "Status",
 ]
 table.align = "r"
@@ -470,6 +477,7 @@ for res in ordered:
                 _format_bytes(metrics.rss_bytes),
                 _format_bytes(metrics.py_peak_bytes),
                 f"{res['per_us']:.1f}",
+                _format_rate(res["runs"], metrics.seconds),
                 colour("ok", role),
             ]
         )
@@ -478,6 +486,7 @@ for res in ordered:
         table.add_row(
             [
                 colour(label, role),
+                "-",
                 "-",
                 "-",
                 "-",
