@@ -16,7 +16,7 @@
     <img src="https://github.com/bytevader/structly/actions/workflows/main-ci.yml/badge.svg?branch=main" alt="Main CI">
 </a>
 
-<a href="https://coverage-badge.samuelcolvin.workers.dev/redirect/bytevader/structly?branch=main" target="_blank">
+<a href="https://github.com/bytevader/structly/actions/workflows/main-ci.yml?query=branch%3Amain" target="_blank">
     <img src="https://coverage-badge.samuelcolvin.workers.dev/bytevader/structly.svg?branch=main" alt="Coverage">
 </a>
 <a href="https://pypi.org/project/structly" target="_blank">
