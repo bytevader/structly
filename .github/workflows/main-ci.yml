@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
   tests:
     name: Tests (Main)
@@ -76,7 +80,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const core = require('@actions/core');
             const fs = require('fs');
             const xml = fs.readFileSync('coverage.xml', 'utf8');
             const match = xml.match(/line-rate="([\d.]+)"/);
