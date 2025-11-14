@@ -3,7 +3,7 @@
 PYTHON ?= python3
 
 test:
-	PYTHONPATH=$(PWD) pytest --cov=structly --cov-report=term-missing
+	PYTHONPATH=$(PWD) pytest --cov=structly --cov-report=term-missing --cov-report=xml
 
 format: format-rust
 	isort structly tests

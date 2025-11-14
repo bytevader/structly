@@ -1,5 +1,35 @@
-# Structly
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/structly.svg">
+    <img alt="structly" src="docs/structly.svg">
+  </picture>
+</p>
+<p align="center">
+    <em>Structly — Rust-powered parser made for massive telemetry and log workloads.</em>
+</p>
+<p align="center">
+<a href="https://github.com/bytevader/structly/actions/workflows/dev-ci.yml?query=branch%3Adev" target="_blank">
+    <img src="https://github.com/bytevader/structly/actions/workflows/dev-ci.yml/badge.svg?branch=dev" alt="Dev CI">
+</a>
 
+<a href="https://github.com/bytevader/structly/actions/workflows/main-ci.yml?query=branch%3Amain" target="_blank">
+    <img src="https://github.com/bytevader/structly/actions/workflows/main-ci.yml/badge.svg?branch=main" alt="Main CI">
+</a>
+
+<a href="https://coverage-badge.samuelcolvin.workers.dev/redirect/bytevader/structly?branch=main" target="_blank">
+    <img src="https://coverage-badge.samuelcolvin.workers.dev/bytevader/structly.svg?branch=main" alt="Coverage">
+</a>
+<a href="https://pypi.org/project/structly" target="_blank">
+    <img src="https://img.shields.io/pypi/v/structly?color=%2334D058&label=pypi%20package" alt="Package version">
+</a>
+</p>
+
+
+---
+
+**Source Code**: <a href="https://github.com/bytevader/structly" target="_blank">https://github.com/bytevader/structly</a>
+
+---
 Structly is a high-performance parsing toolkit that combines a Rust core with a Pythonic API.\
 True to its name, Structly turns massive amounts of unstructured input into clean, structured outputs without slowing your workflows.
 
@@ -30,15 +60,19 @@ If you need reliable, deterministic log/text parsing at scale, Structly is built
 If you are working from this Git repository:
 
 ```bash
-# 0. Clone the repo and enter it
+# Clone the repo and enter it
 git clone https://github.com/bytevader/structly.git
 cd structly
+
+# Install requirements
+pip install -e '.[dev]'
+# or
+python3 -m pip install -r requirements-dev.txt
 
 # Build the native extension (release mode recommended)
 make install-rust
 
 # or, if you manage environments manually:
-python3 -m pip install -r requirements-dev.txt
 python3 -m maturin develop --release
 ```
 
@@ -49,10 +83,17 @@ Structly targets Python 3.9+ with the abi3 wheel and does not require a specific
 ### Configuration
 
 ```python
-from structly import StructlyConfig, FieldSpec, Mode, StructlyParser
+from structly import StructlyConfig, FieldSpec, FieldPattern, Mode, StructlyParser
 
 cfg = StructlyConfig.from_mapping({
     "domain": {"patterns": ["sw:Domain:"]},
+    "registrar": FieldSpec(
+            patterns=[
+                FieldPattern.starts_with("Registrar:"),
+                FieldPattern.regex(r"^\s*Registrar:\s*(?P<val>.+)$"),
+                FieldPattern.regex(r"^\s*(?P<val>.+\[Tag = .+\])$"),
+            ],
+        ),
     "nameservers": {
         "patterns": ["sw:Name Server:"],
         "mode": Mode.all.value,
@@ -63,7 +104,14 @@ cfg = StructlyConfig.from_mapping({
 parser = StructlyParser(cfg)
 ```
 
-Patterns accept `sw:` (starts-with) and `r:` (regex) prefixes; returning lists or deduplicating values is built in.
+Patterns accept `sw:` (starts-with) and `r:` (regex) prefixes, returning lists or deduplicating values is built in.\
+You can use either just strings for patterns like this:\
+`"sw:Domain:"` - but keep in mind that the pattern string should start with `sw:` or `r:`\
+Or you can use `FieldPattern` model that is more readable:\
+```python
+FieldPattern.starts_with("Registrar:"),
+FieldPattern.regex(r"^\s*Registrar:\s*(?P<val>.+)$"),
+```
 
 ### Layouts: `line` vs `inline`
 
