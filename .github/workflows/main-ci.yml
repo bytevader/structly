@@ -1,16 +1,14 @@
-name: Dev CI
+name: Main CI
 
 on:
   push:
     branches:
-      - dev
-  pull_request:
-    branches:
-      - dev
+      - main
+  workflow_dispatch:
 
 jobs:
   tests:
-    name: Tests (Dev)
+    name: Tests (Main)
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -98,29 +96,19 @@ jobs:
               core.info(`coverage status published: ${pct}%`);
             }
 
-  publish-testpypi:
-    name: Publish to TestPyPI
+  publish-pypi:
+    name: Publish to PyPI
     needs: tests
-    if: >-
-      (github.event_name == 'push' &&
-       github.ref == 'refs/heads/dev' &&
-       contains(github.event.head_commit.message, 'release:')) ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.base.ref == 'dev' &&
-       (
-         contains(github.event.pull_request.title, 'release:') ||
-         contains(github.event.pull_request.body, 'release:')
-       ))
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
-            args: --skip-existing --no-strip --repository-url https://test.pypi.org/legacy/
+            args: --skip-existing --no-strip
           - os: macos-latest
-            args: --skip-existing --no-strip --target universal2-apple-darwin --repository-url https://test.pypi.org/legacy/
+            args: --skip-existing --no-strip --target universal2-apple-darwin
           - os: windows-latest
-            args: --skip-existing --no-strip --repository-url https://test.pypi.org/legacy/
+            args: --skip-existing --no-strip
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
@@ -134,7 +122,7 @@ jobs:
       - name: Publish with maturin
         uses: PyO3/maturin-action@v1
         env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         with:
           command: publish
           args: ${{ matrix.args }}
